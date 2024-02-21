@@ -26,6 +26,7 @@ import_embargo = "import_embargo.core:main"
 
 [tool.poetry.dependencies]
 python = ">=3.10"
+marisa-trie = "1.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
