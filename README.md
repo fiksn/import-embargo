@@ -10,7 +10,7 @@ packages/modules.
 In python there is no enforced encapsulation with public/private by the python interpreter. Anyone can import anything.
 This can lead to a mess in medium/large scale applications.
 
-If you strive for **Domain Driven Development**, this package can mark your packages public/private and check for imports which violate the encapsulation.
+If you strive for **Domain Driven Design**, this package can mark your packages public/private and check for imports which violate the encapsulation.
 
 ## Features:
 

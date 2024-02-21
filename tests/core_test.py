@@ -1,11 +1,10 @@
 from pathlib import Path
 
+import marisa_trie  # type: ignore
 import pytest
 
 from import_embargo.core import (
-    Config,
     ModuleTreeBuildingMode,
-    build_allowed_modules_tree,
     get_filenames_to_check,
     get_import_nodes,
     get_package_config,
@@ -15,41 +14,24 @@ from import_embargo.core import (
 
 
 @pytest.mark.parametrize(
-    "imported_module, allowed_modules_tree, result",
+    "imported_module, pattern, result",
     (
-        ("a.b.c", {"a": {}}, True),
-        ("b", {"a": {}}, False),
-        ("a.c", {"a": {"b": {}}}, False),
+        ("a.b.c", "a", True),
+        ("b", "a", False),
+        ("a.c", "a", True),
+        ("a.c", "a.b", False),
+        ("a.b", "a.b", True),
+        ("a.bc", "a.b", False),
+        ("a.b.c", "a.b", True),
     ),
 )
-def test_is_operation_allowed(imported_module, allowed_modules_tree, result):
-    assert (
-        is_operation_allowed(
-            imported_module=imported_module, allowed_modules_tree=allowed_modules_tree
-        )
-        is result
+def test_is_operation_allowed(imported_module: str, pattern: str, result: bool):
+    trie = (marisa_trie.Trie([pattern + "."]), False)
+    outcome = is_operation_allowed(
+        imported_module=imported_module,
+        allow=trie,
     )
-
-
-def test_build_allowed_modules_tree():
-    config = Config(
-        setting={},
-        path="/test/test",
-    )
-    config.setting[ModuleTreeBuildingMode.IMPORT] = [
-        "a.b.c",
-        "a.d.e",
-        "a.d.f",
-        "x.y",
-    ]
-    config.setting[ModuleTreeBuildingMode.EXPORT] = []
-    config.setting[ModuleTreeBuildingMode.BYPASS] = []
-
-    assert build_allowed_modules_tree(config, mode=ModuleTreeBuildingMode.IMPORT) == {
-        "a": {"b": {"c": {}}, "d": {"e": {}, "f": {}}},
-        "x": {"y": {}},
-    }
-    assert build_allowed_modules_tree(config, mode=ModuleTreeBuildingMode.EXPORT) == {}
+    assert outcome == result
 
 
 def test_get_package_config():
@@ -63,7 +45,7 @@ def test_get_package_config():
         root_path=root_path.cwd(),
     )
     assert config is not None
-    assert config.setting[ModuleTreeBuildingMode.IMPORT] == []
+    assert config.allowed[ModuleTreeBuildingMode.IMPORT][0].keys() == []
 
     config = get_package_config(
         directory_path=Path(
@@ -73,7 +55,7 @@ def test_get_package_config():
         root_path=root_path.cwd(),
     )
     assert config is not None
-    assert config.setting[ModuleTreeBuildingMode.IMPORT] == []
+    assert config.allowed[ModuleTreeBuildingMode.IMPORT][0].keys() == []
 
 
 def test_get_import_nodes():
@@ -126,9 +108,8 @@ def test_main_with_fail_import():
         "tests/test_structure/module_b",
         "tests/test_structure/module_c",
     ]
-    with pytest.raises(SystemExit) as err:
+    with pytest.raises(SystemExit):
         main(args)
-        assert err.value.code == -1
 
 
 def test_main_with_fail_export():
@@ -136,9 +117,8 @@ def test_main_with_fail_export():
         "tests/test_structure/module_d/service_with_bad_import.py",
     ]
 
-    with pytest.raises(SystemExit) as err:
+    with pytest.raises(SystemExit):
         main(args)
-        assert err.value.code == -1
 
 
 @pytest.mark.parametrize(
